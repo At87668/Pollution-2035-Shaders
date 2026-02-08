@@ -76,7 +76,7 @@ Not respecting these rules can and will result in a request of thread/download s
 #define SUNLIGHT_STRENGTH 0.5
 
 // Fog tuning: global multiplier (0 = no fog, 1 = original)
-#define FOG_STRENGTH 0.6
+#define FOG_STRENGTH 1.0
 // How much the sun lights the fog (higher = stronger sun tint)
 #define FOG_SUN_INTENSITY 1.2
 
@@ -179,30 +179,32 @@ float luma(vec3 color) {
 	return dot(color,vec3(0.299, 0.587, 0.114));
 }
 
-vec3 calcFog(vec3 fposition, vec3 color, vec3 fogclr,float yPosition,float d) {
-	float tmult = mix(min(abs(worldTime-6000.0)/6000.0,1.0),1.0,rainStrength);
-	// moderate base density for fog/haze
-	float density = (8000.-tmult*tmult*2000.)*0.75;
+vec3 calcFog(vec3 fposition, vec3 color, vec3 fogclr, float yPosition, float d) {
+    float tmult = mix(min(abs(worldTime - 6000.0) / 6000.0, 1.0), 1.0, rainStrength * 0.5);
 
-	vec3 worldpos = (gbufferModelViewInverse*vec4(fposition,1.0)).rgb+cameraPosition;
-	float height = mix(getAirDensity (worldpos.y),0.1,rainStrength*0.8);
+    float baseDensity = 7200.0 - tmult * tmult * 2200.0;
+    float density = mix(baseDensity * 0.75, baseDensity * 0.65, rainStrength);
 
-	// fog coverage, tuned down from previous values
-	float fog = clamp(14.0*exp(-getAirDensity (yPosition)/density) * (1.0-exp( -d*height/density ))/height - 0.12 + rainStrength*0.12, 0.0, 1.0);
+    vec3 worldpos = (gbufferModelViewInverse * vec4(fposition, 1.0)).rgb + cameraPosition;
+    float height = mix(getAirDensity(worldpos.y), 0.15, rainStrength * 0.7);
 
-	// Apply global fog strength to control overall density
-	fog *= FOG_STRENGTH;
+    float baseFog = 14.0 * exp(-getAirDensity(yPosition) / density) 
+                    * (1.0 - exp(-d * height / density)) / height;
+    float fogOffset = mix(-0.06, -0.12, rainStrength);
+    float fog = clamp(baseFog + fogOffset + rainStrength * 0.1, 0.0, 1.0);
 
-	// Base fog color blended with sky/fog color
-	vec3 fogC = fogclr*(0.7+0.3*tmult)*(2.0-rainStrength);
+    fog *= FOG_STRENGTH;
 
-	// Add directional lighting from the sun so fog is lit according to sun position
-	float sunFactor = max(dot(normalize(fposition), normalize(sunVec)), 0.0) * sunVisibility;
-	vec3 sunLight = nsunlight * sunFactor * FOG_SUN_INTENSITY;
-	// blend sun lighting into fog color (subtle)
-	fogC = mix(fogC, fogC + sunLight, clamp(sunFactor, 0.0, 1.0) * 0.8);
+    vec3 daytimeTint = vec3(0.85, 0.92, 1.0);
+    vec3 rainyTint = vec3(0.95, 0.95, 0.98);
+    vec3 weatherTint = mix(daytimeTint, rainyTint, rainStrength);
+    vec3 fogC = fogclr * (0.65 + 0.35 * tmult) * (1.8 - rainStrength * 0.6) * weatherTint;
 
-	return mix(color, fogC*(1.0-isEyeInWater), fog);
+    float sunFactor = max(dot(normalize(fposition), normalize(sunVec)), 0.0) * sunVisibility;
+    vec3 sunLight = nsunlight * sunFactor * FOG_SUN_INTENSITY * (0.3 + 0.7 * (1.0 - rainStrength));
+    fogC = mix(fogC, fogC + sunLight, clamp(sunFactor * 1.2, 0.0, 1.0) * 0.6);
+
+    return mix(color, fogC * (1.0 - isEyeInWater), fog);
 }
 
 float cdist(vec2 coord) {
