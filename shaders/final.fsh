@@ -88,6 +88,10 @@ Not respecting these rules can and will result in a request of thread/download s
 // Sunlight global strength (0 = no sun, 1 = original)
 #define SUNLIGHT_STRENGTH 0.5
 
+// Global brightness multiplier for darkening/brightening the whole scene
+#ifndef GLOBAL_BRIGHTNESS
+#define GLOBAL_BRIGHTNESS 0.675
+#endif
 
 //////////////////////////////END OF ADJUSTABLE VARIABLES
 //////////////////////////////END OF ADJUSTABLE VARIABLES
@@ -420,6 +424,7 @@ if (fading > 0.01) {
 	
 	c = c*(0.8+vignette*1.2)*0.5;
 	#endif	
-
-	gl_FragColor = vec4(c,1.);
+	
+	// Apply global brightness multiplier to darken/brighten entire final image
+	gl_FragColor = vec4(c * GLOBAL_BRIGHTNESS,1.);
 }

@@ -201,12 +201,14 @@ void main() {
 	
 	sunlightMat = vec4(sunlight*0.9,0.0);
 
-	ambientNdotL.a = (worldTime > 12700 && worldTime < 23250)? -NdotL : NdotL;
+	// Use absolute NdotL to avoid dark backfaces on vegetation
+	ambientNdotL.a = abs(NdotL);
 		
 	if (mat){
-	ambientNdotL.a = abs(dot(sunVec,upVec))*0.25+NdotL*0.25+0.5;
-	ambientNdotL.rgb *= 1.2;
-	sunlightMat.a = 1.0;
+		// For vegetation, don't allow negative NdotL to darken the backfaces
+		ambientNdotL.a = abs(dot(sunVec,upVec))*0.25 + max(NdotL, 0.0) * 0.25 + 0.5;
+		ambientNdotL.rgb *= 1.2;
+		sunlightMat.a = 1.0;
 	}
 
 	ambientNdotL.a = max(ambientNdotL.a,0.0);
